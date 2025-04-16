@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Category</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="bg-light">
+
+<div class="container mt-5">
+    <div class="card shadow p-4">
+        <h2 class="text-center">Add Category</h2>
+        <form id="categoryForm">
+            <div class="mb-3">
+                <label class="form-label">Category Name</label>
+                <input type="text" id="category" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Monthly Budget (₹)</label>
+                <input type="number" id="monthlyLimit" class="form-control" required min="1">
+            </div>
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary">Add Category</button>
+                <a href="index.html" class="btn btn-secondary">Back</a>
+            </div>
+        </form>
+        <div class="alert mt-3 d-none" id="messageBox"></div>
+        <h4 class="mt-4 text-center">Total Budget: ₹<span id="totalBudget">0</span></h4>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let userID = 1;  // Set user ID dynamically if needed
+
+    function updateTotalBudget() {
+        $.get(`/dashboard/${userID}`, function(response) {
+            let totalBudget = response.monthly_limits.reduce((sum, cat) => sum + cat.budget, 0);
+            $("#totalBudget").text(totalBudget);
+        }).fail(() => showMessage("Error fetching budget data", "danger"));
+    }
+
+    $("#categoryForm").submit(function(e) {
+        e.preventDefault();
+        
+        let category = $("#category").val().trim();
+        let monthlyLimit = $("#monthlyLimit").val().trim();
+        
+        if (!category || !monthlyLimit) {
+            showMessage("Please fill all fields!", "warning");
+            return;
+        }
+
+        let data = { userID, category, monthlyLimit };
+
+        $.ajax({
+            url: "/addcategory",
+            method: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(data),
+            success: function() {
+                showMessage("Category Added Successfully!", "success");
+                updateTotalBudget();
+                $("#categoryForm")[0].reset();
+            },
+            error: function() {
+                showMessage("Error adding category", "danger");
+            }
+        });
+    });
+
+    function showMessage(message, type) {
+        let messageBox = $("#messageBox");
+        messageBox.text(message).removeClass("d-none alert-success alert-danger alert-warning")
+                  .addClass(`alert alert-${type}`);
+        setTimeout(() => messageBox.addClass("d-none"), 3000);
+    }
+
+    updateTotalBudget();
+});
+</script>
+
+</body>
+</html>

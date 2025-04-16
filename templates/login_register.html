@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Register</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 400px;
+            margin-top: 50px;
+        }
+        .form-box {
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .toggle-text {
+            text-align: center;
+            margin-top: 10px;
+            cursor: pointer;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="form-box">
+        <h3 class="text-center text-dark" id="formTitle">Login</h3>
+        <form id="loginForm">
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" id="loginUsername" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" id="loginPassword" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Login</button>
+        </form>
+
+        <form id="registerForm" class="d-none">
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" id="registerUsername" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" id="registerEmail" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" id="registerPassword" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-success w-100">Register</button>
+        </form>
+
+        <p class="toggle-text" id="toggleText">Don't have an account? Register</p>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $("#toggleText").click(function() {
+        $("#loginForm, #registerForm").toggleClass("d-none");
+        $("#formTitle").text($("#formTitle").text() === "Login" ? "Register" : "Login");
+        $("#toggleText").text($("#toggleText").text() === "Don't have an account? Register" ? "Already have an account? Login" : "Don't have an account? Register");
+    });
+
+    $("#loginForm").submit(function(e) {
+        e.preventDefault();
+        let data = {
+            username: $("#loginUsername").val(),
+            password: $("#loginPassword").val()
+        };
+        $.ajax({
+            url: "/login",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(data),
+            success: function(response) {
+                alert("Login Successful!");
+                window.location.href = "index.html"; // Redirect after login
+            },
+            error: function() {
+                alert("Invalid Credentials!");
+            }
+        });
+    });
+
+    $("#registerForm").submit(function(e) {
+        e.preventDefault();
+        let data = {
+            username: $("#registerUsername").val(),
+            email: $("#registerEmail").val(),
+            password: $("#registerPassword").val()
+        };
+        $.ajax({
+            url: "/register",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(data),
+            success: function() {
+                alert("Registration Successful! Please Login.");
+                $("#toggleText").click(); // Switch to login
+            },
+            error: function() {
+                alert("Error registering user.");
+            }
+        });
+    });
+});
+</script>
+
+</body>
+</html>
