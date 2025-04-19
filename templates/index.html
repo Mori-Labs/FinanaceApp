@@ -92,7 +92,7 @@
 <script>
 $(document).ready(function() {
     let userID = 1;
-    let categoryColors = {};
+    let categoryColors = JSON.parse(localStorage.getItem('categoryColors')) || {}; // Retrieve from localStorage if exists
 
     function getRandomColor() {
         const colors = ["#ff5733", "#33b5e5", "#ffeb3b", "#8e44ad", "#2ecc71", "#e67e22", "#ff4081", "#00c853"];
@@ -108,46 +108,47 @@ $(document).ready(function() {
     }
 
     function renderChart(categories) {
-    let labels = categories.map(cat => cat.category);
-    let spentData = categories.map(cat => cat.total_budget - cat.budget); // Spent = Total - Remaining
-    let totalData = categories.map(cat => cat.total_budget);
+        let labels = categories.map(cat => cat.category);
+        let spentData = categories.map(cat => cat.total_budget - cat.budget); // Spent = Total - Remaining
+        let totalData = categories.map(cat => cat.total_budget);
 
-    let ctx = document.getElementById("budgetChart").getContext("2d");
+        let ctx = document.getElementById("budgetChart").getContext("2d");
 
-    if (window.myChart) {
-        window.myChart.destroy(); // Destroy previous chart to avoid duplicates
+        if (window.myChart) {
+            window.myChart.destroy(); // Destroy previous chart to avoid duplicates
+        }
+
+        window.myChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: "Spent Amount",
+                        data: spentData,
+                        backgroundColor: "rgba(255, 99, 132, 0.6)", // Red bars
+                    },
+                    {
+                        label: "Total Budget",
+                        data: totalData,
+                        backgroundColor: "rgba(54, 162, 235, 0.6)", // Blue bars
+                    }
+                ]
+            },
+            options: {
+                indexAxis: "y", // Horizontal bars
+                responsive: true,
+                plugins: {
+                    legend: { position: "top" },
+                    tooltip: { enabled: true }
+                },
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
     }
 
-    window.myChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: "Spent Amount",
-                    data: spentData,
-                    backgroundColor: "rgba(255, 99, 132, 0.6)", // Red bars
-                },
-                {
-                    label: "Total Budget",
-                    data: totalData,
-                    backgroundColor: "rgba(54, 162, 235, 0.6)", // Blue bars
-                }
-            ]
-        },
-        options: {
-            indexAxis: "y", // Horizontal bars
-            responsive: true,
-            plugins: {
-                legend: { position: "top" },
-                tooltip: { enabled: true }
-            },
-            scales: {
-                x: { beginAtZero: true }
-            }
-        }
-    });
-        }
     function loadDashboard() {
         $.get(`/dashboard/${userID}`, function(response) {
             if (response.message) {
@@ -163,28 +164,15 @@ $(document).ready(function() {
             categories.forEach(cat => {
                 if (!categoryColors[cat.category]) {
                     categoryColors[cat.category] = getRandomColor();
+                    localStorage.setItem('categoryColors', JSON.stringify(categoryColors)); // Save the color to localStorage
                 }
                 let color = categoryColors[cat.category];
                 let textColor = getContrastTextColor(color);
                 let badgeStyle = `background: ${color}; color: ${textColor}; padding: 5px 10px; border-radius: 5px;`;
 
-                // balanceList.append(`<li class="list-group-item d-flex justify-content-between align-items-center">
-                //     <span style="${badgeStyle}">${cat.category}</span> ₹${cat.budget}
-                // </li>`);
-
                 balanceList.append(`<li class="list-group-item d-flex justify-content-between align-items-center">
                     <span style="${badgeStyle}">${cat.category}</span> ₹${(cat.total_budget - cat.budget).toFixed(0)} / ₹${cat.total_budget}
                 </li>`);
-
-                // balanceList.append(`
-                //     <li class="list-group-item d-flex justify-content-between align-items-center">
-                //         <span style="${badgeStyle}">${cat.category}</span>
-                //         <span>₹${(cat.total_budget - cat.budget).toFixed(2)}</span>
-                //         <span>₹${cat.total_budget.toFixed(2)}</span>
-                //         <span>₹${cat.budget.toFixed(2)}</span>
-                //     </li>
-                // `);
-
 
                 categoryDropdown.append(`<option value="${cat.category}" style="background:${color}; color:${textColor}">${cat.category}</option>`);
             });
