@@ -1,11 +1,13 @@
 from flask import Flask, request, jsonify, render_template
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
+from flask import session
 
 app = Flask(__name__)
+app.secret_key = 'unaku_vaikuren_da_periya_aapa'
 
 conn = mysql.connector.connect(
-    host="localhost", user="root", password="admin", database="finance"
+    host="localhost", user="root", password="vijay", database="finance_db"
 )
 
 cursor = conn.cursor()
@@ -21,7 +23,7 @@ def index_page():
 @app.route("/")
 def index():
     # return render_template("login_register.html")
-    return render_template("index.html")
+    return render_template("login_register.html")
 
 
 # Serve the category addition page
@@ -34,17 +36,32 @@ def add_category_page():
 def register():
     data = request.get_json()
     username = data.get("username")
-    password = data.get("password")
     email = data.get("email")
-    password_hash = generate_password_hash(password)
-    cursor.execute(
-        "INSERT INTO USERS(Name,Email,Password_Hash) VALUES('{}','{}','{}')".format(
-            username, email, password_hash
+    password = data.get("password")
+
+    hashed_password = generate_password_hash(password)
+
+    try:
+        cursor.execute(
+            "INSERT INTO USERS(Name, Email, Password_Hash) VALUES (%s, %s, %s)",
+            (username, email, hashed_password)
         )
-    )
-    conn.commit()
-    print(cursor.rowcount)
-    return jsonify({"message": "Success"}), 200
+        conn.commit()
+
+        # Fetch the new user's ID
+        cursor.execute("SELECT User_ID FROM USERS WHERE Email = %s", (email,))
+        user = cursor.fetchone()
+
+        if user:
+            session['user_id'] = user[0]  # Log the user in by setting session
+            return jsonify({"message": "Registration successful", "userID": user[0]}), 200
+        else:
+            return jsonify({"error": "Could not retrieve user ID"}), 500
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": f"Registration failed: {str(e)}"}), 500
+
 
 
 @app.route("/login", methods=["POST"])
@@ -57,11 +74,13 @@ def login():
         "SELECT User_ID, Password_Hash from USERS WHERE Name = '{}'".format(username)
     )
     user = cursor.fetchone()
-    print(user[1])
-    # Check if user exists
+
+    # Check if user exists and password matches
     if user and check_password_hash(user[1], password):
-        # return jsonify({"message": "Login successful", "user": user[0]}), 200
-        return index_page()
+        # Store the user_id in the session
+        session['user_id'] = user[0]
+        
+        return jsonify({"message": "Login successful", "userID": user[0]}), 200
     else:
         return jsonify({"error": "Invalid credentials"}), 401
 
@@ -146,15 +165,18 @@ def add_record():
 @app.route("/addcategory", methods=["POST"])
 def add_category():
     data = request.get_json()
-    user_id = data.get("userID")
+
+    user_id = session.get("user_id")  # or use data.get("userID") if session isn't available
+    if not user_id:
+        return jsonify({"error": "User not logged in or userID missing"}), 401
+
     category = data.get("category")
     monthly_limit = data.get("monthlyLimit")
     curr_balance = monthly_limit
 
     cursor.execute(
-        "INSERT INTO Budgets (User_ID,Category,Monthly_Limit,Remaining_Monthly_Limit) VALUES('{}','{}','{}','{}')".format(
-            user_id, category, monthly_limit, curr_balance
-        )
+        "INSERT INTO Budgets (User_ID, Category, Monthly_Limit, Remaining_Monthly_Limit) VALUES (%s, %s, %s, %s)",
+        (user_id, category, monthly_limit, curr_balance)
     )
 
     conn.commit()
@@ -163,6 +185,7 @@ def add_category():
         return jsonify({"message": "success"}), 200
     else:
         return jsonify({"error": "Invalid Data"}), 401
+
 
 
 def get_monthly_limits(user_id):
