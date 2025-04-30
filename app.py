@@ -2,12 +2,16 @@ from flask import Flask, request, jsonify, render_template
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 from flask import session
-
+from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+import os
+import pandas as pd
+load_dotenv()
 app = Flask(__name__)
 app.secret_key = 'unaku_vaikuren_da_periya_aapa'
 
 conn = mysql.connector.connect(
-    host="localhost", user="root", password="vijay", database="finance_db"
+    host=os.getenv('HOST'), user=os.getenv("USER"), password=os.getenv("PASSWORD"), database=os.getenv("DATABASE")
 )
 
 cursor = conn.cursor()
@@ -210,7 +214,56 @@ def get_monthly_limits(user_id):
 
     print(results)
     return results
+UPLOAD_FOLDER = "uploads"
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+@app.route('/upload_excel', methods=['POST'])
+def upload_excel():
+    if 'file' not in request.files:
+        return "No file part", 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return "No selected file", 400
+
+    if not file.filename.endswith(('.xls', '.xlsx')):
+        return "Invalid file format", 400
+
+    # Read Excel file
+    df = pd.read_excel(file)
+
+    user_id = session.get('user_id')
+    if not user_id:
+        return "User not logged in", 401
+
+    for index, row in df.iterrows():
+        category = row['Category']
+        amount = float(row['Amount'])
+        date = str(row['Month_Year'])
+        description = row['Description']
+
+        # Check if budget exists for this (user, category)
+        cursor.execute("SELECT 1 FROM Budgets WHERE User_ID = %s AND Category = %s", (user_id, category))
+        if not cursor.fetchone():
+            # Create new budget with default ₹10,000
+            cursor.execute(
+                "INSERT INTO Budgets (User_ID, Category, Monthly_Limit, Remaining_Monthly_Limit) VALUES (%s, %s, %s, %s)",
+                (user_id, category, 10000,10000)
+            )
+            conn.commit()
+
+        # Insert transaction
+        cursor.execute(
+            "INSERT INTO Transactions (User_ID, Category, Amount, Month_Year, Description) VALUES (%s, %s, %s, %s, %s)",
+            (user_id, category, amount, date, description)
+        )
+        conn.commit()
+
+        # Optionally update balance if needed
+        update_balance(user_id, category, amount)
+
+    return jsonify({"message": "Excel data uploaded and processed successfully!"}), 200
 
 if __name__ == "__main__":
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.run(debug=True)
