@@ -86,6 +86,10 @@
                 <button id="confirmAddCategory" class="btn btn-primary w-100">Confirm</button>
             </div>
         </div>
+        <div>
+            <button onclick="document.getElementById('excelInput').click()">Import Excel</button>
+            <input type="file" id="excelInput" accept=".xls,.xlsx" style="display: none" onchange="uploadExcel()">
+        </div>
     </div>
 </div>
 
@@ -268,7 +272,32 @@ $(document).ready(function() {
 
     loadDashboard();
 });
+function uploadExcel() {
+      const fileInput = document.getElementById('excelInput');
+      const file = fileInput.files[0];
 
+      if (!file) {
+        alert("No file selected.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      fetch("/upload_excel", {
+        method: "POST",
+        body: formData
+      })
+      .then(response => response.text())
+      .then(data => {
+        alert("Upload successful!");
+        console.log("Response:", data);
+      })
+      .catch(error => {
+        console.error("Error:", error);
+        alert("Upload failed!");
+      });
+    }
 </script>
     
 
