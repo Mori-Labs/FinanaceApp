@@ -89,8 +89,9 @@ def login():
         return jsonify({"error": "Invalid credentials"}), 401
 
 
-@app.route("/dashboard/<uid>", methods=["GET"])
-def get_transactions(uid):
+@app.route("/dashboard", methods=["GET"])
+def get_transactions():
+    uid = session.get("user_id") 
     cursor.execute(
         "SELECT DATE_FORMAT(Month_Year,'%d-%m-%Y') AS FormattedDate,Category,Description,Amount FROM Transactions WHERE User_ID = {} ORDER BY Month_Year DESC".format(
             uid
@@ -120,8 +121,25 @@ def get_all():
     data = cursor.fetchall()
     return jsonify(data), 200
 
+def update_remaining(category,amount):
+    user_id = session.get("user_id")
+    cursor.execute(
+        "SELECT SUM(Amount) AS TotalAmount FROM transactions WHERE User_ID = {} AND Category = '{}'".format(user_id,category) 
+    )
+    result = cursor.fetchone()
+    total_amount = result[0] if result[0] is not None else 0.0
 
+    updated_balance = int(amount-total_amount)
+    cursor.execute(
+        "UPDATE Budgets SET Remaining_Monthly_Limit = {} WHERE User_ID = {} AND Category = '{}'".format(
+            updated_balance, user_id, category
+        )
+    )
+
+    conn.commit()
+    return cursor.rowcount
 def update_balance(user_id, category, amount):
+     
     cursor.execute(
         "SELECT Remaining_Monthly_Limit FROM Budgets WHERE User_ID = {} AND Category = '{}'".format(
             user_id, category
@@ -144,7 +162,7 @@ def update_balance(user_id, category, amount):
 @app.route("/addtxn", methods=["POST"])
 def add_record():
     data = request.get_json()
-    user_id = data.get("userID")
+    user_id = session.get("user_id") 
     date = data.get("date")
     description = data.get("description")
     category = data.get("category")
@@ -177,7 +195,7 @@ def add_category():
     category = data.get("category")
     monthly_limit = data.get("monthlyLimit")
     curr_balance = monthly_limit
-
+    print("hii")
     cursor.execute(
         "INSERT INTO Budgets (User_ID, Category, Monthly_Limit, Remaining_Monthly_Limit) VALUES (%s, %s, %s, %s)",
         (user_id, category, monthly_limit, curr_balance)
@@ -248,7 +266,7 @@ def upload_excel():
             # Create new budget with default ₹10,000
             cursor.execute(
                 "INSERT INTO Budgets (User_ID, Category, Monthly_Limit, Remaining_Monthly_Limit) VALUES (%s, %s, %s, %s)",
-                (user_id, category, 10000,10000)
+                (user_id, category,0,0)
             )
             conn.commit()
 
@@ -263,6 +281,28 @@ def upload_excel():
         update_balance(user_id, category, amount)
 
     return jsonify({"message": "Excel data uploaded and processed successfully!"}), 200
+
+@app.route('/editbudget', methods=['PUT'])
+def edit_budget():
+    user_id = session.get('user_id')  # if you're using sessions
+    print(user_id)
+    if not user_id:
+        return "User not logged in", 401
+    data = request.get_json()
+    category = data['category']
+    new_budget = data['updatedBudget']
+    print(new_budget)
+    print(category)
+    # Update logic
+    cursor.execute("UPDATE budgets SET Monthly_Limit = {}, Remaining_Monthly_Limit = {} WHERE User_ID = {} AND Category = '{}'".format(new_budget,0 , user_id, category))
+    conn.commit()
+    status = update_remaining(category, new_budget)
+
+    if cursor.rowcount == 1 and status == 1:
+        return jsonify({"message": "success"}), 200
+    else:
+        return jsonify({"error": "Invalid Data"}), 401
+    # return jsonify({"message": "Budget updated"}), 200
 
 if __name__ == "__main__":
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
