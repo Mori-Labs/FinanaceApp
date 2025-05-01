@@ -32,55 +32,54 @@
 </div>
 
 <script>
-$(document).ready(function() {
-    let userID = 1;  // Set user ID dynamically if needed
-
-    function updateTotalBudget() {
-        $.get(`/dashboard/${userID}`, function(response) {
-            let totalBudget = response.monthly_limits.reduce((sum, cat) => sum + cat.budget, 0);
-            $("#totalBudget").text(totalBudget);
-        }).fail(() => showMessage("Error fetching budget data", "danger"));
-    }
-
-    $("#categoryForm").submit(function(e) {
-        e.preventDefault();
-        
-        let category = $("#category").val().trim();
-        let monthlyLimit = $("#monthlyLimit").val().trim();
-        
-        if (!category || !monthlyLimit) {
-            showMessage("Please fill all fields!", "warning");
-            return;
+    $(document).ready(function() {
+        function updateTotalBudget() {
+            $.get("/dashboard", function(response) {
+                let totalBudget = response.monthly_limits.reduce((sum, cat) => sum + cat.budget, 0);
+                $("#totalBudget").text(totalBudget);
+            }).fail(() => showMessage("Error fetching budget data", "danger"));
         }
-
-        let data = { userID, category, monthlyLimit };
-
-        $.ajax({
-            url: "/addcategory",
-            method: "POST",
-            contentType: "application/json",
-            data: JSON.stringify(data),
-            success: function() {
-                showMessage("Category Added Successfully!", "success");
-                updateTotalBudget();
-                $("#categoryForm")[0].reset();
-            },
-            error: function() {
-                showMessage("Error adding category", "danger");
+    
+        $("#categoryForm").submit(function(e) {
+            e.preventDefault();
+            
+            let category = $("#category").val().trim();
+            let monthlyLimit = $("#monthlyLimit").val().trim();
+    
+            if (!category || !monthlyLimit) {
+                showMessage("Please fill all fields!", "warning");
+                return;
             }
+    
+            let data = { category, monthlyLimit };
+    
+            $.ajax({
+                url: "/addcategory",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(data),
+                success: function() {
+                    showMessage("Category Added Successfully!", "success");
+                    updateTotalBudget();
+                    $("#categoryForm")[0].reset();
+                },
+                error: function() {
+                    showMessage("Error adding category", "danger");
+                }
+            });
         });
+    
+        function showMessage(message, type) {
+            let messageBox = $("#messageBox");
+            messageBox.text(message).removeClass("d-none alert-success alert-danger alert-warning")
+                      .addClass(`alert alert-${type}`);
+            setTimeout(() => messageBox.addClass("d-none"), 3000);
+        }
+    
+        updateTotalBudget();
     });
-
-    function showMessage(message, type) {
-        let messageBox = $("#messageBox");
-        messageBox.text(message).removeClass("d-none alert-success alert-danger alert-warning")
-                  .addClass(`alert alert-${type}`);
-        setTimeout(() => messageBox.addClass("d-none"), 3000);
-    }
-
-    updateTotalBudget();
-});
-</script>
+    </script>
+    
 
 </body>
 </html>
